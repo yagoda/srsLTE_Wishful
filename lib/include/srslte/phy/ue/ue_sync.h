@@ -117,7 +117,8 @@ typedef struct SRSLTE_API {
   float mean_sfo; 
   uint32_t sample_offset_correct_period; 
   float sfo_ema; 
-  
+  sss_alg_t sss_algorithm;
+  float cfo_tol;
 
   #ifdef MEASURE_EXEC_TIME
   float mean_exec_time;

@@ -76,6 +76,8 @@ typedef struct SRSLTE_API {
   uint32_t sfn_offset; 
   
   uint32_t frame_cnt; 
+  
+  srslte_chest_dl_noise_alg_t noise_alg;
 } srslte_ue_mib_t;
 
 SRSLTE_API int srslte_ue_mib_init(srslte_ue_mib_t *q, 

@@ -99,7 +99,6 @@ typedef struct SRSLTE_API {
   uint64_t pkt_errors; 
   uint64_t pkts_total;
   uint64_t nof_detected; 
-
   uint16_t current_rnti;
   dci_blind_search_t current_ss_ue[3][10];
   dci_blind_search_t current_ss_common[3];
@@ -110,6 +109,10 @@ typedef struct SRSLTE_API {
   uint16_t pending_ul_dci_rnti; 
   
   float sample_offset; 
+  
+  bool zf_equalizer;
+  int max_turbo_its;
+  srslte_chest_dl_noise_alg_t noise_alg;
 }srslte_ue_dl_t;
 
 /* This function shall be called just after the initial synchronization */
