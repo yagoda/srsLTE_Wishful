@@ -32,6 +32,7 @@
 
 #define DEVNAME_B200 "uhd_b200"
 #define DEVNAME_X300 "uhd_x300"
+#define DEVNAME_N200 "uhd_usrp2"
 
 
 SRSLTE_API int rf_uhd_open(char *args, 
@@ -100,6 +101,13 @@ SRSLTE_API int rf_uhd_recv_with_time_multi(void *h,
                                 time_t *secs,
                                 double *frac_secs); 
 
+SRSLTE_API int rf_uhd_recv_with_time_multi_resampler(void *h,
+                                void **data,
+                                uint32_t nsamples,
+                                bool blocking,
+                                time_t *secs,
+                                double *frac_secs);
+
 SRSLTE_API double rf_uhd_set_tx_srate(void *h, 
                                     double freq);
 
@@ -122,4 +130,14 @@ SRSLTE_API int  rf_uhd_send_timed(void *h,
                                   bool blocking, 
                                   bool is_start_of_burst, 
                                   bool is_end_of_burst);
+
+SRSLTE_API int rf_uhd_send_timed_resampler(void *h,
+                     void *data,
+                     int nsamples,
+                     time_t secs,
+                     double frac_secs,                      
+                     bool has_time_spec,
+                     bool blocking,
+                     bool is_start_of_burst,
+                     bool is_end_of_burst);
 

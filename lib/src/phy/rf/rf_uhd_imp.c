@@ -58,6 +58,13 @@ typedef struct {
   
   bool async_thread_running; 
   pthread_t async_thread; 
+  
+  cf_t *resampler_storage[1];
+  srslte_resample_arb_t rx_resampler[2];
+  srslte_resample_arb_t tx_resampler;
+  double rx_rate;
+ 
+  bool activate_resampler;
 } rf_uhd_handler_t;
 
 void suppress_handler(const char *x)
@@ -253,7 +260,7 @@ void rf_uhd_flush_buffer(void *h)
   cf_t tmp2[1024];
   void *data[2] = {tmp1, tmp2};
   do {
-    n = rf_uhd_recv_with_time_multi(h, data, 1024, 0, NULL, NULL);
+    n = rf_uhd_recv_with_time_multi_resampler(h, data, 1024, 0, NULL, NULL);
   } while (n > 0);  
 }
 
@@ -291,7 +298,7 @@ int rf_uhd_open(char *args, void **h)
 
 int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
 {
-  if (h) {
+   if (h) {
     *h = NULL; 
     
     rf_uhd_handler_t *handler = (rf_uhd_handler_t*) malloc(sizeof(rf_uhd_handler_t));
@@ -323,18 +330,27 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
     handler->uhd_error_handler = NULL;
     
     bzero(zero_mem, sizeof(cf_t)*64*1024);
-    
+    handler->activate_resampler = false;
+    //puts(devices_str);
     /* If device type or name not given in args, choose a B200 */
     if (args[0]=='\0') {
       if (find_string(devices_str, "type=b200") && !strstr(args, "recv_frame_size")) {
         // If B200 is available, use it
         args = "type=b200";        
         handler->devname = DEVNAME_B200;
+        //handler->activate_resampler = true;
       } else if (find_string(devices_str, "type=x300")) {
         // Else if X300 is available, set master clock rate now (can't be changed later)
         args = "type=x300,master_clock_rate=184.32e6";
         handler->dynamic_rate = false; 
         handler->devname = DEVNAME_X300;
+      }
+      else if (find_string(devices_str, "type=usrp2")) {
+        args = "type=usrp2";
+        printf("found N-series USRPL activate resampling...\n");
+        handler->devname = DEVNAME_N200;
+        handler->activate_resampler = true;
+        handler->dynamic_rate = false; 
       }
     } else {
       // If args is set and x300 type is specified, make sure master_clock_rate is defined
@@ -345,6 +361,12 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
         handler->devname = DEVNAME_X300;
       } else if (strstr(args, "type=b200")) {
         handler->devname = DEVNAME_B200;
+        //handler->activate_resampler = true;
+      }else if (strstr(args, "type=usrp2")) {
+        printf("found N-series USRPL activate resampling...\n");
+        handler->devname = DEVNAME_N200;
+        handler->activate_resampler = true;
+        handler->dynamic_rate = false; 
       }
     }        
     
@@ -367,8 +389,14 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
       uhd_usrp_get_mboard_name(handler->usrp, 0, dev_str, 1024);
       if (strstr(dev_str, "B2") || strstr(dev_str, "B2")) {
         handler->devname = DEVNAME_B200;
+        //handler->activate_resampler = true;
       } else if (strstr(dev_str, "X3") || strstr(dev_str, "X3")) {
         handler->devname = DEVNAME_X300;        
+      } else if (strstr(dev_str, "N2") || strstr(dev_str, "N2")) {
+        printf("found N-series USRPL activate resampling...\n");
+        handler->devname = DEVNAME_N200;
+        handler->activate_resampler = true;
+        handler->dynamic_rate = false; 
       }
     }
     if (!handler->devname) {
@@ -425,7 +453,19 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
     uhd_rx_metadata_make(&handler->rx_md);
     uhd_rx_metadata_make(&handler->rx_md_first);
     uhd_tx_metadata_make(&handler->tx_md, false, 0, 0, false, false);
-  
+    //handler->activate_resampler = false;
+    
+    if(handler->activate_resampler)
+    {
+      handler->resampler_storage[0] = srslte_vec_malloc(sizeof(cf_t)*9600*2);
+      srslte_resample_arb_init(&(handler->rx_resampler[0]), 0.96);
+      srslte_resample_arb_init(&(handler->rx_resampler[1]), 0.9216);
+      
+   
+      srslte_resample_arb_init(&(handler->tx_resampler), 1.08506944444);
+      
+    }
+    
     
     // Start low priority thread to receive async commands 
     handler->async_thread_running = true; 
@@ -479,22 +519,43 @@ bool rf_uhd_is_master_clock_dynamic(void *h) {
 double rf_uhd_set_rx_srate(void *h, double freq)
 {
   rf_uhd_handler_t *handler = (rf_uhd_handler_t*) h;
-  for (int i=0;i<handler->nof_rx_channels;i++) {
-    uhd_usrp_set_rx_rate(handler->usrp, freq, i);
+  double rate;
+  if(handler->activate_resampler){
+    if(freq < 3000000){
+      rate = freq*SRSLTE_RX_RESAMPLE_192;
+    }else{
+      rate = freq*SRSLTE_RX_RESAMPLE_FULL;
+    }
+  }else{
+    rate = freq;
   }
-  uhd_usrp_get_rx_rate(handler->usrp, 0, &freq);
-  return freq; 
+  
+  for (int i=0;i<handler->nof_rx_channels;i++) {
+    uhd_usrp_set_rx_rate(handler->usrp, rate, i);
+  }
+  uhd_usrp_get_rx_rate(handler->usrp, 0, &rate);
+  handler->rx_rate = rate;
+  return rate; 
 }
 
 double rf_uhd_set_tx_srate(void *h, double freq)
 {
   rf_uhd_handler_t *handler = (rf_uhd_handler_t*) h;
-  for (int i=0;i<handler->nof_tx_channels;i++) {
-    uhd_usrp_set_tx_rate(handler->usrp, freq, i);
+  double rate;
+  if(handler->activate_resampler){
+      rate = freq*SRSLTE_TX_RESAMPLE_FULL;
+    
+  }else{
+    rate = freq;
   }
-  uhd_usrp_get_tx_rate(handler->usrp, 0, &freq);
-  handler->tx_rate = freq;
-  return freq; 
+  
+    
+  for (int i=0;i<handler->nof_tx_channels;i++) {
+    uhd_usrp_set_tx_rate(handler->usrp, rate, i);
+  }
+  uhd_usrp_get_tx_rate(handler->usrp, 0, &rate);
+  handler->tx_rate = rate;
+  return rate; 
 }
 
 double rf_uhd_set_rx_gain(void *h, double gain)
@@ -581,7 +642,38 @@ int rf_uhd_recv_with_time(void *h,
   return rf_uhd_recv_with_time_multi(h, &data, nsamples, blocking, secs, frac_secs);
 }
 
+
 int rf_uhd_recv_with_time_multi(void *h,
+                                void **data,
+                                uint32_t nsamples,
+                                bool blocking,
+                                time_t *secs,
+                                double *frac_secs)
+{
+  
+  rf_uhd_handler_t *handler = (rf_uhd_handler_t*) h;
+  if(handler->activate_resampler){
+    int resampler_idx = 0;
+    int numsamples_r = 0;
+    if(handler->rx_rate < 3000000){
+      numsamples_r = nsamples*SRSLTE_RX_RESAMPLE_192;
+    }else{
+      numsamples_r = nsamples*SRSLTE_RX_RESAMPLE_FULL;
+      resampler_idx = 1;
+    }
+    int ret = rf_uhd_recv_with_time_multi_resampler(h, (void**)handler->resampler_storage, numsamples_r, blocking, secs, frac_secs);
+    int ret1 = srslte_resample_arb_compute(&handler->rx_resampler[resampler_idx], handler->resampler_storage[0], *data, numsamples_r);
+    return ret1; 
+  } else {
+    return rf_uhd_recv_with_time_multi_resampler(h, data, nsamples, blocking, secs, frac_secs);
+  }
+   
+   
+  
+}
+
+
+int rf_uhd_recv_with_time_multi_resampler(void *h,
                                 void **data,
                                 uint32_t nsamples,
                                 bool blocking,
@@ -637,8 +729,34 @@ int rf_uhd_recv_with_time_multi(void *h,
   }
   return nsamples;
 }
-                   
+
+
+
 int rf_uhd_send_timed(void *h,
+                     void *data,
+                     int nsamples,
+                     time_t secs,
+                     double frac_secs,                      
+                     bool has_time_spec,
+                     bool blocking,
+                     bool is_start_of_burst,
+                     bool is_end_of_burst)
+{
+  
+  
+  rf_uhd_handler_t* handler = (rf_uhd_handler_t*) h;
+  if(handler->activate_resampler){
+    int numsamples_r = nsamples*SRSLTE_TX_RESAMPLE_FULL;
+    int ret1 = srslte_resample_arb_compute(&handler->tx_resampler, data, handler->resampler_storage[0] , nsamples);
+    int ret = rf_uhd_send_timed_resampler(h, handler->resampler_storage[0], numsamples_r, secs, frac_secs,has_time_spec,blocking,is_start_of_burst,is_end_of_burst);
+    return ret;
+  }  
+  else{  
+    return rf_uhd_send_timed_resampler(h, data, nsamples, secs, frac_secs,has_time_spec,blocking,is_start_of_burst,is_end_of_burst);
+  }
+}
+                   
+int rf_uhd_send_timed_resampler(void *h,
                      void *data,
                      int nsamples,
                      time_t secs,
