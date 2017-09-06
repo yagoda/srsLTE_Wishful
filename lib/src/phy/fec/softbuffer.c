@@ -101,6 +101,7 @@ void srslte_softbuffer_rx_reset(srslte_softbuffer_rx_t *q) {
 
 void srslte_softbuffer_rx_reset_cb(srslte_softbuffer_rx_t *q, uint32_t nof_cb) {
   if (q->buffer_f) {
+    printf("make it\n");
     if (nof_cb > q->max_cb) {
       nof_cb = q->max_cb; 
     }

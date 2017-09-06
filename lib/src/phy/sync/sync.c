@@ -62,7 +62,19 @@ int srslte_sync_init_decim(srslte_sync_t *q, uint32_t frame_size, uint32_t max_o
       fft_size_isvalid(fft_size))
   {
     ret = SRSLTE_ERROR; 
+    sss_alg_t sss_alg = 0;
+    float cfo_tol = 50;
+    if (q->cfo_tol <= 50) {
+      cfo_tol = q->cfo_tol;
+    }
+    if(q->sss_alg <= 0 && q->sss_alg >= 2) {
+      sss_alg = q->sss_alg;
+    }
+    
     bzero(q, sizeof(srslte_sync_t));
+    q->sss_alg = sss_alg;
+    q->cfo_tol = cfo_tol;
+    
     q->detect_cp = true;
     q->sss_en = true;
     q->mean_cfo = 0; 
@@ -76,8 +88,7 @@ int srslte_sync_init_decim(srslte_sync_t *q, uint32_t frame_size, uint32_t max_o
     q->fft_size = fft_size;
     q->frame_size = frame_size;
     q->max_offset = max_offset;
-    q->sss_alg = SSS_FULL;
-        
+    
     q->enable_cfo_corr = true; 
     if (srslte_cfo_init(&q->cfocorr, q->frame_size)) {
       fprintf(stderr, "Error initiating CFO\n");
@@ -90,10 +101,10 @@ int srslte_sync_init_decim(srslte_sync_t *q, uint32_t frame_size, uint32_t max_o
     }
     
     // Set a CFO tolerance of approx 50 Hz
-    srslte_cfo_set_tol(&q->cfocorr, 50.0/(15000.0*q->fft_size));
+    srslte_cfo_set_tol(&q->cfocorr, q->cfo_tol/(15000.0*q->fft_size));
 
     // Set a CFO tolerance of approx 50 Hz
-    srslte_cfo_set_tol(&q->cfocorr2, 50.0/(15000.0*q->fft_size));
+    srslte_cfo_set_tol(&q->cfocorr2, q->cfo_tol/(15000.0*q->fft_size));
 
     for (int i=0;i<2;i++) {
       q->cfo_i_corr[i] = srslte_vec_malloc(sizeof(cf_t)*q->frame_size);

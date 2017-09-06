@@ -61,8 +61,24 @@ int srslte_ue_dl_init_multi(srslte_ue_dl_t *q,
       srslte_cell_isvalid(&cell))   
   {
     ret = SRSLTE_ERROR;
+    int equalizer = 0;
+    int noise_alg = 0;
+    int max_turbo_its = 0;
     
+    if (q->zf_equalizer == 0 || q->zf_equalizer == 1) {
+      equalizer = q->zf_equalizer;
+    } 
+    if(q->noise_alg <= 0 && q->noise_alg >= 2) {
+      noise_alg = q->noise_alg;
+    }
+    if (q->max_turbo_its >= 0 && q->max_turbo_its <= 4) {
+      max_turbo_its = q->max_turbo_its;  
+    }
     bzero(q, sizeof(srslte_ue_dl_t));
+    q->zf_equalizer = equalizer;
+    q->chest.noise_alg = noise_alg;
+    q->pdsch.max_turbo_its = max_turbo_its;
+    
     
     q->cell = cell; 
     q->pkt_errors = 0;
@@ -303,7 +319,7 @@ int srslte_ue_dl_decode_rnti_multi(srslte_ue_dl_t *q, cf_t *input[SRSLTE_MAX_POR
   // Uncoment next line to do ZF by default in pdsch_ue example
   //float noise_estimate = 0; 
 
-  if (srslte_pdcch_extract_llr_multi(&q->pdcch, q->sf_symbols_m, q->ce_m, noise_estimate, sf_idx, cfi)) {
+  if (srslte_pdcch_extract_llr_multi(&q->pdcch, q->sf_symbols_m, q->ce_m, (q->zf_equalizer)?0:noise_estimate, sf_idx, cfi)) {
     fprintf(stderr, "Error extracting LLRs\n");
     return SRSLTE_ERROR;
   }
@@ -342,7 +358,7 @@ int srslte_ue_dl_decode_rnti_multi(srslte_ue_dl_t *q, cf_t *input[SRSLTE_MAX_POR
     if (q->pdsch_cfg.grant.mcs.mod > 0 && q->pdsch_cfg.grant.mcs.tbs >= 0) {
       ret = srslte_pdsch_decode_multi(&q->pdsch, &q->pdsch_cfg, &q->softbuffer, 
                                     q->sf_symbols_m, q->ce_m, 
-                                    noise_estimate, 
+                                    (q->zf_equalizer)?0:noise_estimate, 
                                     rnti, data);
       
       if (ret == SRSLTE_ERROR) {

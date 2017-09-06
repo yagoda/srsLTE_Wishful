@@ -86,6 +86,7 @@ typedef struct SRSLTE_API {
   srslte_cfo_t cfocorr;
   srslte_cfo_t cfocorr2;
   sss_alg_t sss_alg; 
+  double cfo_tol;
   bool detect_cp;
   bool sss_en;
   srslte_cp_t cp;

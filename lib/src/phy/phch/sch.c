@@ -95,7 +95,13 @@ uint32_t srslte_sch_find_Ioffset_cqi(float beta) {
 int srslte_sch_init(srslte_sch_t *q) {
   int ret = SRSLTE_ERROR_INVALID_INPUTS;
   if (q) {    
+    
+    int max_turbo_its = SRSLTE_PDSCH_MAX_TDEC_ITERS;
+    if (q->max_iterations >= 0 && q->max_iterations <= 4) {
+      max_turbo_its = q->max_iterations;  
+    }
     bzero(q, sizeof(srslte_sch_t));
+    q->max_iterations = max_turbo_its;
     
     if (srslte_crc_init(&q->crc_tb, SRSLTE_LTE_CRC24A, 24)) {
       fprintf(stderr, "Error initiating CRC\n");
@@ -115,8 +121,6 @@ int srslte_sch_init(srslte_sch_t *q) {
       goto clean;
     }
 
-    q->max_iterations = SRSLTE_PDSCH_MAX_TDEC_ITERS;
-    
     srslte_rm_turbo_gentables();
     
     // Allocate int16 for reception (LLRs)

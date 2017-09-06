@@ -79,7 +79,12 @@ int srslte_chest_dl_init(srslte_chest_dl_t *q, srslte_cell_t cell)
   if (q                != NULL &&
       srslte_cell_isvalid(&cell)) 
   {
+    int noise_alg  = 0;
+    if(q->noise_alg <= 0 && q->noise_alg >= 2) {
+      noise_alg = q->noise_alg;
+    }
     bzero(q, sizeof(srslte_chest_dl_t));
+    q->noise_alg = noise_alg; 
     
     ret = srslte_refsignal_cs_init(&q->csr_signal, cell); 
     if (ret != SRSLTE_SUCCESS) {
@@ -123,7 +128,7 @@ int srslte_chest_dl_init(srslte_chest_dl_t *q, srslte_cell_t cell)
       goto clean_exit;
     }
     
-    q->noise_alg = SRSLTE_NOISE_ALG_REFS; 
+    
     
     q->smooth_filter_len = 3; 
     srslte_chest_dl_set_smooth_filter3_coeff(q, 0.1);

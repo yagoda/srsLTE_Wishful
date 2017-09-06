@@ -159,8 +159,23 @@ int srslte_ue_sync_init_multi_decim(srslte_ue_sync_t *q,
       recv_callback                     != NULL)
   {
     ret = SRSLTE_ERROR;
-    //int decimate = q->decimate;
+     sss_alg_t sss_alg = 0;
+    float cfo_tol = 50;
+    if (q->cfo_tol <= 50) {
+      cfo_tol = q->cfo_tol;
+    }
+    if(q->sss_algorithm <= 0 && q->sss_algorithm >= 2) {
+      sss_alg = q->sss_algorithm;
+    }
     bzero(q, sizeof(srslte_ue_sync_t));
+    
+    //WISHFUL
+    q->sfind.sss_alg = sss_alg;
+    q->strack.sss_alg = sss_alg;
+    
+    q->sfind.cfo_tol = cfo_tol;
+    q->strack.cfo_tol = cfo_tol;
+    //WISHFUL
     q->decimate = decimate;
     q->stream = stream_handler;
     q->recv_callback = recv_callback;
@@ -173,9 +188,7 @@ int srslte_ue_sync_init_multi_decim(srslte_ue_sync_t *q,
     q->agc_period = 0; 
     q->sample_offset_correct_period = DEFAULT_SAMPLE_OFFSET_CORRECT_PERIOD; 
     q->sfo_ema                      = DEFAULT_SFO_EMA_COEFF; 
-    
     if (cell.id == 1000) {
-      
       /* If the cell is unkown, we search PSS/SSS in 5 ms */
       q->nof_recv_sf = 5; 
 

@@ -59,7 +59,7 @@ typedef struct SRSLTE_API {
   uint32_t nof_rx_antennas;
   
   uint32_t max_re;
-  
+  int max_turbo_its;
   /* buffers */
   // void buffers are shared for tx and rx
   cf_t *ce[SRSLTE_MAX_PORTS][SRSLTE_MAX_PORTS];

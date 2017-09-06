@@ -218,8 +218,12 @@ int srslte_pdsch_init_multi(srslte_pdsch_t *q, srslte_cell_t cell, uint32_t nof_
      srslte_cell_isvalid(&cell) && 
      nof_rx_antennas <= SRSLTE_MAX_PORTS) 
   {   
-    
+    int max_turbo_its = 4;
+    if (q->max_turbo_its >= 0 && q->max_turbo_its <= 4) {
+      max_turbo_its = q->max_turbo_its;  
+    }
     bzero(q, sizeof(srslte_pdsch_t));
+    q->dl_sch.max_iterations = max_turbo_its;
     ret = SRSLTE_ERROR;
     
     q->cell = cell;
