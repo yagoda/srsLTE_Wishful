@@ -36,14 +36,26 @@ if(RF_FOUND)
 
   add_executable(pdsch_enodeb pdsch_enodeb.c)
   target_link_libraries(pdsch_enodeb srslte_phy srslte_rf pthread)
+
+  add_executable(pdsch_ue_wishful pdschUE.c)
+  target_link_libraries(pdsch_ue_wishful srslte_phy srslte_rf pthread)
+
+  add_executable(pdsch_enodeb_wishful pdschEnodeB.c)
+  target_link_libraries(pdsch_enodeb_wishful srslte_phy srslte_rf pthread)
 else(RF_FOUND)
   add_definitions(-DDISABLE_RF)
 
   add_executable(pdsch_ue pdsch_ue.c)
   target_link_libraries(pdsch_ue srslte_phy pthread)
 
+  add_executable(pdsch_enodeb_wishful pdschUE.c)
+  target_link_libraries(pdsch_ue_wishful srslte_phy  pthread)
+
   add_executable(pdsch_enodeb pdsch_enodeb.c)
   target_link_libraries(pdsch_enodeb srslte_phy pthread)
+
+  add_executable(pdsch_enodeb_wishful pdschEnodeB.c)
+  target_link_libraries(pdsch_enodeb_wishful srslte_phy  pthread)
 endif(RF_FOUND)
 
 find_package(SRSGUI)
@@ -51,6 +63,7 @@ find_package(SRSGUI)
 if(SRSGUI_FOUND)
   include_directories(${SRSGUI_INCLUDE_DIRS})
   target_link_libraries(pdsch_ue ${SRSGUI_LIBRARIES})
+ target_link_libraries(pdsch_ue_wishful ${SRSGUI_LIBRARIES})
 else(SRSGUI_FOUND)
   add_definitions(-DDISABLE_GRAPHICS)
 endif(SRSGUI_FOUND)

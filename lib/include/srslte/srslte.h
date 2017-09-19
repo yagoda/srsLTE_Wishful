@@ -43,6 +43,8 @@
 #include "srslte/phy/utils/debug.h"
 #include "srslte/phy/utils/cexptab.h"
 #include "srslte/phy/utils/vector.h"
+#include "srslte/phy/utils/parson.h"
+#include "srslte/phy/utils/pipe.h"
 
 #include "srslte/phy/common/timestamp.h"
 #include "srslte/phy/common/sequence.h"
