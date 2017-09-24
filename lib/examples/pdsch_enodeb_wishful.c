@@ -85,7 +85,7 @@ srslte_rf_t rf;
 #endif
 
 char *output_file_name = NULL;
-
+bool send_pdsch_data = false;
 #define LEFT_KEY  68
 #define RIGHT_KEY 67
 #define UP_KEY    65
@@ -196,6 +196,9 @@ void parse_args(int argc, char **argv) {
       config_prb = true;
       prb_mask = atoi(argv[optind]);
       printf("logic to configure prbs\n");  
+    break;
+    case 'P':
+      send_pdsch_data = atoi(argv[optind]);  
     break;
     default:
       usage(argv[0]);
@@ -614,6 +617,7 @@ int main(int argc, char **argv) {
   nf = 0;
   
   bool send_data = false; 
+ 
   srslte_softbuffer_tx_reset(&softbuffer);
 
 #ifndef DISABLE_RF
@@ -662,7 +666,7 @@ int main(int argc, char **argv) {
         if (sf_idx != 0 && sf_idx != 5) {
           send_data = true; 
         } else {
-          send_data = false;           
+          send_data = send_pdsch_data;           
         }
       }        
       
@@ -744,11 +748,6 @@ void * wishful_thread_receive_run(void *args)
     //char buf[256];
     //int ret = srslte_netsource_init(&wishful_command_server, prog_args.net_address, prog_args.net_port, SRSLTE_NETSOURCE_TCP); 
     int ret = srslte_netsource_init(&wishful_command_server, "0.0.0.0", portNo, SRSLTE_NETSOURCE_TCP); 
-    //sigset_t sigset;
-    //sigemptyset(&sigset);
-    //sigaddset(&sigset, SIGINT);
-    //sigprocmask(SIG_UNBLOCK, &sigset, NULL);
-    //signal(SIGINT, sig_int_handler_rec);
     if(ret != 0)
     {
         perror("failed to initialize socket");
@@ -794,7 +793,7 @@ void * wishful_thread_receive_run(void *args)
             }
             else
             {
-               printf("[SRSLTE] Wishful has requested parameter : %d is changed \n", comm.which_config); 
+               printf("[SRSLTE] Wishful has requested parameter : %d is changed to %f \n", comm.which_config, comm.config_value); 
                
             }
             pipe_push(p_command,(void*)&comm, 1);
@@ -875,9 +874,9 @@ void * wishful_thread_send_run(void *args)
               config_mcs = false;
             break;
             case PRBS:
-              printf("prb mask value is :  %d\n");
               config_prb = true;
               prb_mask = wish.reconfig_value;
+              printf("prb mask value is :  %d\n",prb_mask);
               update_radl();
               config_prb = false;
             break;

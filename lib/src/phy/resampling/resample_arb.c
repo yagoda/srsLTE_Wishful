@@ -65,8 +65,8 @@ float srslte_resample_arb_polyfilt[SRSLTE_RESAMPLE_ARB_N][SRSLTE_RESAMPLE_ARB_M]
 
 
 // TODO: use lte/utils/vector.h and Volk
-cf_t srslte_resample_arb_dot_prod(cf_t* x, float *y, int len)
-{
+cf_t srslte_resample_arb_dot_prod(cf_t* x, float *y, int len){
+   
   cf_t res = 0+0*I;
   for(int i=0;i<len;i++){
     res += x[i]*y[i];
@@ -75,14 +75,15 @@ cf_t srslte_resample_arb_dot_prod(cf_t* x, float *y, int len)
 }
 
 // Right-shift our window of samples
-void srslte_resample_arb_push(srslte_resample_arb_t *q, cf_t x)
-{
+void srslte_resample_arb_push(srslte_resample_arb_t *q, cf_t x){
+  
   memmove(&q->reg[1], &q->reg[0], (SRSLTE_RESAMPLE_ARB_M-1)*sizeof(cf_t));
   q->reg[0] = x;
 }
 
 // Initialize our struct
 void srslte_resample_arb_init(srslte_resample_arb_t *q, float rate){
+  
   memset(q->reg, 0, SRSLTE_RESAMPLE_ARB_M*sizeof(cf_t));
   q->acc = 0.0;
   q->rate = rate;
@@ -95,8 +96,7 @@ int srslte_resample_arb_compute(srslte_resample_arb_t *q, cf_t *input, cf_t *out
   int n_out = 0;
   int idx = 0;
 
-  while(cnt < n_in)
-  {
+  while (cnt < n_in) {
     *output = srslte_resample_arb_dot_prod(q->reg, srslte_resample_arb_polyfilt[idx], SRSLTE_RESAMPLE_ARB_M);
     output++;
     n_out++;

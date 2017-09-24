@@ -367,7 +367,7 @@ extern float mean_exec_time;
 
 enum receiver_state {DECODE_MIB, DECODE_PDSCH} state; 
 
-enum metric_state {CFO, SNR, RSRP, RSRQ, NOISE, CSI, N_FRAMES, PDSCH};
+enum metric_state {CFO, SNR, RSRP, RSRQ, NOISE, CSI, N_FRAMES, PDSCH_MISS, PDCCH_MISS, MOD, TBS};
 
 srslte_ue_dl_t ue_dl; 
 srslte_ue_sync_t ue_sync; 
@@ -382,6 +382,7 @@ typedef struct{
   bool  decode_pdsch;
   bool  CSI;
   float pdsch_miss;
+  float pdcch_miss;
   }metrics;
   
   metrics phy_metrics;
@@ -719,6 +720,7 @@ int main(int argc, char **argv) {
             }        
           }
           phy_metrics.pdsch_miss = (float) 100*ue_dl.pkt_errors/ue_dl.pkts_total;
+          phy_metrics.pdcch_miss = 100*(1-(float) ue_dl.nof_detected/nof_trials);
           // Plot and Printf
           if (srslte_ue_sync_get_sfidx(&ue_sync) == 5) {
             float gain = prog_args.rf_gain; 
@@ -1050,9 +1052,10 @@ void * wishful_thread_send_run(void *args)
       wishful_response wish;
       JSON_Value *root_value = json_value_init_object();
       JSON_Object *root_object = json_value_get_object(root_value);
-
       if(rece[0].wants_metric)
       {
+        wish.which_metric = 0;
+        wish.metric_value = 0;
         wish.is_reconfig = false;
         switch(rece[0].which_metric)
         {
@@ -1072,7 +1075,7 @@ void * wishful_thread_send_run(void *args)
           wish.which_metric = RSRQ;
           wish.metric_value = phy_metrics.rsrq;
           break;
-          case NOISE:
+          case NOISE: 
           wish.which_metric = NOISE;
           wish.metric_value = phy_metrics.noise;
           break;
@@ -1086,9 +1089,21 @@ void * wishful_thread_send_run(void *args)
           wish.which_metric = N_FRAMES;
           wish.metric_value = phy_metrics.nframes;
           break;
-          case PDSCH:
-          wish.which_metric = PDSCH;
+          case PDSCH_MISS:
+          wish.which_metric = PDSCH_MISS;
           wish.metric_value = phy_metrics.pdsch_miss;
+          break;
+          case PDCCH_MISS:
+          wish.which_metric = PDCCH_MISS;
+          wish.metric_value = phy_metrics.pdcch_miss;
+          break;
+          case MOD:
+          wish.which_metric = MOD;
+          wish.metric_value = ue_dl.pdsch_cfg.grant.mcs.idx;
+          break;
+          case TBS:
+          wish.which_metric = TBS;
+          wish.metric_value = ue_dl.pdsch_cfg.grant.mcs.tbs;
           break;
           default:
           break;

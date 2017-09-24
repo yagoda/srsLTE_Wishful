@@ -601,7 +601,7 @@ int main(int argc, char **argv) {
         if (sf_idx != 0 && sf_idx != 5) {
           send_data = true; 
         } else {
-          send_data = false;           
+          send_data = true;           
         }
       }        
       
