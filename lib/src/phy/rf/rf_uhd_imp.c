@@ -535,7 +535,7 @@ double rf_uhd_set_rx_srate(void *h, double freq)
   }
   uhd_usrp_get_rx_rate(handler->usrp, 0, &rate);
   handler->rx_rate = rate;
-  return rate; 
+  return freq; 
 }
 
 double rf_uhd_set_tx_srate(void *h, double freq)
@@ -555,7 +555,7 @@ double rf_uhd_set_tx_srate(void *h, double freq)
   }
   uhd_usrp_get_tx_rate(handler->usrp, 0, &rate);
   handler->tx_rate = rate;
-  return rate; 
+  return freq; 
 }
 
 double rf_uhd_set_rx_gain(void *h, double gain)

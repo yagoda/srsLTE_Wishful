@@ -194,7 +194,7 @@ int rf_cell_search(srslte_rf_t *rf, uint32_t nof_rx_antennas,
     fprintf(stderr, "Error searching cell\n");
     return SRSLTE_ERROR;
   } else if (ret == 0) {
-    fprintf(stderr, "Could not find any cell in this frequency\n");
+    //fprintf(stderr, "Could not find any cell in this frequency\n");
     return SRSLTE_SUCCESS;
   }
   

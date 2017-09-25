@@ -492,7 +492,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Error searching for cell\n");
         exit(-1); 
       } else if (ret == 0 && !go_exit) {
-        printf("Cell not found after %d trials. Trying again (Press Ctrl+C to exit)\n", ntrial++);
+        //printf("Cell not found after %d trials. Trying again (Press Ctrl+C to exit)\n", ntrial++);
       }      
     } while (ret == 0 && !go_exit); 
     

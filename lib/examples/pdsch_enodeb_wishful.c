@@ -85,7 +85,7 @@ srslte_rf_t rf;
 #endif
 
 char *output_file_name = NULL;
-bool send_pdsch_data = false;
+int send_pdsch_data = 0;
 #define LEFT_KEY  68
 #define RIGHT_KEY 67
 #define UP_KEY    65
@@ -137,7 +137,7 @@ int prbset_orig = 0;
 
 
 void usage(char *prog) {
-  printf("Usage: %s [agmfoncvpu]\n", prog);
+  printf("Usage: %s [agmfoncvpuwP]\n", prog);
 #ifndef DISABLE_RF
   printf("\t-a RF args [Default %s]\n", rf_args);
   printf("\t-l RF amplitude [Default %.2f]\n", rf_amp);
@@ -157,7 +157,7 @@ void usage(char *prog) {
 
 void parse_args(int argc, char **argv) {
   int opt;
-  while ((opt = getopt(argc, argv, "aglfmoncpvuw")) != -1) {
+  while ((opt = getopt(argc, argv, "aglfmoncpvuwP")) != -1) {
     switch (opt) {
     case 'a':
       rf_args = argv[optind];
@@ -198,7 +198,7 @@ void parse_args(int argc, char **argv) {
       printf("logic to configure prbs\n");  
     break;
     case 'P':
-      send_pdsch_data = atoi(argv[optind]);  
+      //send_pdsch_data = atoi(argv[optind]);  
     break;
     default:
       usage(argv[0]);
@@ -405,6 +405,7 @@ int update_radl() {
   srslte_ra_dl_grant_fprint(stdout, &dummy_grant);
   printf("Type new MCS index and press Enter: "); fflush(stdout);
  
+  //return -1;
   return 0; 
 }
 
@@ -544,9 +545,6 @@ int main(int argc, char **argv) {
   
   /* this *must* be called after setting slot_len_* */
   base_init();
- 
-  init_wishful_receive(command_pipe);
-  init_wishful_send(command_pipe);
   
   /* Generate PSS/SSS signals */
   srslte_pss_generate(pss_signal, N_id_2);
@@ -623,7 +621,15 @@ int main(int argc, char **argv) {
 #ifndef DISABLE_RF
   bool start_of_burst = true; 
 #endif
-  
+ 
+
+  #ifdef WISHFUL
+  init_wishful_receive(command_pipe);
+  sleep(1);
+  init_wishful_send(command_pipe);
+  sleep(1);
+  #endif
+ 
   while ((nf < nof_frames || nof_frames == -1) && !go_exit) {
     for (sf_idx = 0; sf_idx < SRSLTE_NSUBFRAMES_X_FRAME && (nf < nof_frames || nof_frames == -1); sf_idx++) {
       bzero(sf_buffer, sizeof(cf_t) * sf_n_re);
@@ -729,8 +735,8 @@ int main(int argc, char **argv) {
   }
 
   base_free();
-  (void) pthread_join(wishful_thread_receive, NULL);
-  (void) pthread_join(wishful_thread_send, NULL);
+  //(void) pthread_join(wishful_thread_receive, NULL);
+  //(void) pthread_join(wishful_thread_send, NULL);
   
   //(void) pthread_join(wishful_thread_receive, NULL); 
   printf("******************Done\n");
@@ -744,7 +750,7 @@ void * wishful_thread_receive_run(void *args)
     
     pipe_t* command_pipe = args;
     
-    int portNo = 4444;
+    int portNo = 4321;
     //char buf[256];
     //int ret = srslte_netsource_init(&wishful_command_server, prog_args.net_address, prog_args.net_port, SRSLTE_NETSOURCE_TCP); 
     int ret = srslte_netsource_init(&wishful_command_server, "0.0.0.0", portNo, SRSLTE_NETSOURCE_TCP); 
@@ -757,11 +763,11 @@ void * wishful_thread_receive_run(void *args)
     pipe_producer_t* p_command = pipe_producer_new(command_pipe);
     pipe_free(command_pipe);
             
-    while(!go_exit)
+    while(true)
     {
         char buf[120];
         int serv_state = srslte_netsource_read(&wishful_command_server, buf, 120);
-        puts(buf);
+        //puts(buf);
         if(serv_state <  0)
         {
             fprintf(stderr, "Error receiving from network\n");
@@ -770,6 +776,7 @@ void * wishful_thread_receive_run(void *args)
         else if(serv_state == 0)
         {
             //connection closed
+	   printf("connection closed\n");
         }
         else
         {
@@ -820,7 +827,7 @@ void init_wishful_receive(pipe_t* command_pipe)
 void * wishful_thread_send_run(void *args)
 {
     pipe_t* command_pipe = args;
-    int portNo = 5555;
+    int portNo = 2222;
     int ret =  srslte_netsink_init(&wishful_metric_client, "0.0.0.0", portNo, SRSLTE_NETSINK_TCP);
     char test_string[5];
         
@@ -837,11 +844,19 @@ void * wishful_thread_send_run(void *args)
         exit(-1);
     }
     pipe_consumer_t* c = pipe_consumer_new(command_pipe);
-    while(!go_exit)
+    while(true)
     {
         wishful_command rece[1];
         pipe_pop(c,rece,1);
         wishful_response wish;
+	wish.is_reconfig = false;
+        wish.reconfig_value = -1;
+        wish.which_reconfig = -1;
+        wish.which_metric = 0;
+        wish.metric_value = 0;
+	//wish.is_reconfig =        
+
+
         JSON_Value *root_value = json_value_init_object();
         JSON_Object *root_object = json_value_get_object(root_value);
         
@@ -862,7 +877,7 @@ void * wishful_thread_send_run(void *args)
           {
             case MCS:
               last_mcs_idx = mcs_idx; 
-              mcs_idx = wish.reconfig_value;
+              mcs_idx = (uint32_t)wish.reconfig_value;
               config_mcs = true;
               if (update_radl()) 
               {
@@ -871,6 +886,7 @@ void * wishful_thread_send_run(void *args)
                   prbset_num = last_prbset_num; 
                   update_radl();
               }
+              printf("mcs reconfigured\n");
               config_mcs = false;
             break;
             case PRBS:
