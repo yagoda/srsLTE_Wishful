@@ -101,7 +101,7 @@ typedef struct {
     float reconfig_value;
 }wishful_response;
 
-enum parameter_state {FREQ, GAIN};
+enum parameter_state {AA,BB,FREQ, GAIN};
 #endif
 
 
@@ -1119,7 +1119,8 @@ void * wishful_thread_send_run(void *args)
           wish.reconfig_value  = rece[0].config_value;
           wish.which_reconfig = rece[0].which_config;
           wish.is_reconfig = true;
-          printf("[SRSLTE] about to reconfigure \n");
+          printf("which reconfig is %d and value is %f \n",wish.which_reconfig,wish.reconfig_value);
+
           switch(wish.which_reconfig)
           {
             case GAIN:

@@ -794,15 +794,15 @@ void * wishful_thread_receive_run(void *args)
             comm.make_config  = (make_config == 1)?true:false;
             comm.wants_metric = (wants_metric == 1)?true:false;
             comm.which_metric = which_metric;
-            if(comm.wants_metric)
-            {
-                printf("[SRSLTE] Wishful has requested metric number : %d\n", comm.which_metric);
-            }
-            else
-            {
-               printf("[SRSLTE] Wishful has requested parameter : %d is changed to %f \n", comm.which_config, comm.config_value); 
+            //if(comm.wants_metric)
+            //{
+            //    printf("[SRSLTE] Wishful has requested metric number : %d\n", comm.which_metric);
+           // }
+           // else
+           // {
+           //    printf("[SRSLTE] Wishful has requested parameter : %d is changed to %f \n", comm.which_config, comm.config_value); 
                
-            }
+           // }
             pipe_push(p_command,(void*)&comm, 1);
         }
     }    
