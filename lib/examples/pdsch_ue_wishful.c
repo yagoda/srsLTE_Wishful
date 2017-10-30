@@ -102,6 +102,7 @@ typedef struct {
 }wishful_response;
 
 enum parameter_state {AA,BB,FREQ, GAIN};
+enum metric_state {CFO, SNR, RSRP, RSRQ, NOISE, CSI, NUM_RX, PDSCH_MISS, PDCCH_MISS, MOD, TBS, RSSI, CQI, CELL_ID};
 #endif
 
 
@@ -367,7 +368,7 @@ extern float mean_exec_time;
 
 enum receiver_state {DECODE_MIB, DECODE_PDSCH} state; 
 
-enum metric_state {CFO, SNR, RSRP, RSRQ, NOISE, CSI, N_FRAMES, PDSCH_MISS, PDCCH_MISS, MOD, TBS};
+
 
 srslte_ue_dl_t ue_dl; 
 srslte_ue_sync_t ue_sync; 
@@ -383,6 +384,7 @@ typedef struct{
   bool  CSI;
   float pdsch_miss;
   float pdcch_miss;
+  float rssi;
   }metrics;
   
   metrics phy_metrics;
@@ -707,7 +709,8 @@ int main(int argc, char **argv) {
             
             phy_metrics.rsrq = SRSLTE_VEC_EMA(srslte_chest_dl_get_rsrq(&ue_dl.chest), phy_metrics.rsrq, prog_args.snr_ema_coeff);
             phy_metrics.rsrp = SRSLTE_VEC_EMA(srslte_chest_dl_get_rsrp(&ue_dl.chest), phy_metrics.rsrp, prog_args.snr_ema_coeff);      
-            phy_metrics.noise = SRSLTE_VEC_EMA(srslte_chest_dl_get_noise_estimate(&ue_dl.chest), phy_metrics.noise, prog_args.snr_ema_coeff);      
+            phy_metrics.noise = SRSLTE_VEC_EMA(srslte_chest_dl_get_noise_estimate(&ue_dl.chest), phy_metrics.noise, prog_args.snr_ema_coeff);  
+            phy_metrics.rssi = SRSLTE_VEC_EMA(srslte_chest_dl_get_rssi(&ue_dl.chest), phy_metrics.rssi, prog_args.snr_ema_coeff);
             phy_metrics.nframes++;
             if (isnan(phy_metrics.rsrq)) {
               phy_metrics.rsrq = 0; 
@@ -717,7 +720,10 @@ int main(int argc, char **argv) {
             }
             if (isnan(phy_metrics.rsrp)) {
               phy_metrics.rsrp = 0; 
-            }        
+            }
+            if (isnan(phy_metrics.rssi)) {
+              phy_metrics.rssi = 0; 
+            }
           }
           phy_metrics.pdsch_miss = (float) 100*ue_dl.pkt_errors/ue_dl.pkts_total;
           phy_metrics.pdcch_miss = 100*(1-(float) ue_dl.nof_detected/nof_trials);
@@ -1077,7 +1083,7 @@ void * wishful_thread_send_run(void *args)
           break;
           case NOISE: 
           wish.which_metric = NOISE;
-          wish.metric_value = phy_metrics.noise;
+          wish.metric_value = 10*log10(phy_metrics.noise);
           break;
           case CSI:
           wish.which_metric = CSI;
@@ -1085,8 +1091,8 @@ void * wishful_thread_send_run(void *args)
           srslte_filesink_write(&CSI_sink, ue_dl.ce[0], 12*ue_dl.cell.nof_prb);
           wish.metric_value = true;
           break;
-          case N_FRAMES:
-          wish.which_metric = N_FRAMES;
+          case NUM_RX:
+          wish.which_metric = NUM_RX;
           wish.metric_value = phy_metrics.nframes;
           break;
           case PDSCH_MISS:
@@ -1105,6 +1111,17 @@ void * wishful_thread_send_run(void *args)
           wish.which_metric = TBS;
           wish.metric_value = ue_dl.pdsch_cfg.grant.mcs.tbs;
           break;
+          case RSSI:
+          wish.which_metric = RSSI;
+          wish.metric_value = 10*log10(phy_metrics.rssi);
+          break;
+          case CQI:
+          wish.which_metric = CQI;
+          wish.metric_value = srslte_cqi_from_snr(10*log10(phy_metrics.rsrp/phy_metrics.noise));
+          break;
+          case CELL_ID:
+          wish.which_metric = CELL_ID;
+          wish.metric_value = ue_dl.cell.id;
           default:
           break;
         }
@@ -1140,9 +1157,7 @@ void * wishful_thread_send_run(void *args)
         json_object_set_number(root_object, "which_reconfig", wish.which_reconfig);
         json_object_set_number(root_object, "reconfig_value", wish.reconfig_value);
         serialized_string = json_serialize_to_string_pretty(root_value);
-        //puts(serialized_string);
         int size = strlen(serialized_string);
-        //printf("size of string is %d\n", size);
         if(srslte_netsink_write(&wishful_metric_client, serialized_string, size) < 0)
         {
             fprintf(stderr, "Error sending data through TCP socket\n");

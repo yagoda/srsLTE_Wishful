@@ -42,6 +42,8 @@
 
 #include "srslte/config.h"
 
+
+#define SRSLTE_RESAMPLE_ARB_N_35    35 
 #define SRSLTE_RESAMPLE_ARB_N    32  // Polyphase filter rows
 #define SRSLTE_RESAMPLE_ARB_M    8   // Polyphase filter columns
 

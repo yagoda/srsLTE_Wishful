@@ -67,14 +67,18 @@ typedef struct {
     float reconfig_value;
 }wishful_response;
 
-enum metric_state {MCS, PRBS, FREQ, GAIN};
+enum parameter_state {MCS, PRBS, FREQ, GAIN};
+enum metric_state {NUM_TX};
 uint32_t prb_mask;
 bool config_prb;
 bool config_mcs;
+uint32_t num_frames;
+uint32_t ue_crnti = 0x1234;
 #endif
 
 
-#define UE_CRNTI 0x1234
+//#define UE_CRNTI 0x1234
+
 
 
 #ifndef DISABLE_RF
@@ -94,7 +98,6 @@ int send_pdsch_data = 0;
 srslte_cell_t cell = {
   25,            // nof_prb
   1,            // nof_ports
-  0,            // bw idx 
   0,            // cell_id
   SRSLTE_CP_NORM,       // cyclic prefix
   SRSLTE_PHICH_R_1,          // PHICH resources      
@@ -198,14 +201,16 @@ void parse_args(int argc, char **argv) {
       printf("logic to configure prbs\n");  
     break;
     case 'P':
-      //send_pdsch_data = atoi(argv[optind]);  
+      send_pdsch_data = atoi(argv[optind]);  
     break;
+    case 'R':
+      ue_crnti = atoi(argv[optind]);
     default:
       usage(argv[0]);
       exit(-1);
     }
   }
-  //rf_freq = 2490000000;
+ 
 #ifdef DISABLE_RF
   if (!output_file_name) {
     usage(argv[0]);
@@ -304,7 +309,7 @@ void base_init() {
     exit(-1);
   }
   
-  srslte_pdsch_set_rnti(&pdsch, UE_CRNTI);
+  srslte_pdsch_set_rnti(&pdsch, ue_crnti);
   
   if (srslte_softbuffer_tx_init(&softbuffer, cell.nof_prb)) {
     fprintf(stderr, "Error initiating soft buffer\n");
@@ -400,7 +405,7 @@ int update_radl() {
   srslte_ra_pdsch_fprint(stdout, &ra_dl, cell.nof_prb);
   srslte_ra_dl_grant_t dummy_grant; 
   srslte_ra_nbits_t dummy_nbits;
-  srslte_ra_dl_dci_to_grant(&ra_dl, cell.nof_prb, UE_CRNTI, &dummy_grant);
+  srslte_ra_dl_dci_to_grant(&ra_dl, cell.nof_prb, ue_crnti, &dummy_grant);
   srslte_ra_dl_grant_to_nbits(&dummy_grant, cfi, cell, 0, &dummy_nbits);
   srslte_ra_dl_grant_fprint(stdout, &dummy_grant);
   printf("Type new MCS index and press Enter: "); fflush(stdout);
@@ -608,7 +613,7 @@ int main(int argc, char **argv) {
   
   /* Initiate valid DCI locations */
   for (i=0;i<SRSLTE_NSUBFRAMES_X_FRAME;i++) {
-    srslte_pdcch_ue_locations(&pdcch, locations[i], 30, i, cfi, UE_CRNTI);
+    srslte_pdcch_ue_locations(&pdcch, locations[i], 30, i, cfi, ue_crnti);
     
   }
     
@@ -631,6 +636,7 @@ int main(int argc, char **argv) {
   #endif
  
   while ((nf < nof_frames || nof_frames == -1) && !go_exit) {
+    num_frames = nf;
     for (sf_idx = 0; sf_idx < SRSLTE_NSUBFRAMES_X_FRAME && (nf < nof_frames || nof_frames == -1); sf_idx++) {
       bzero(sf_buffer, sizeof(cf_t) * sf_n_re);
 
@@ -681,21 +687,21 @@ int main(int argc, char **argv) {
         /* Encode PDCCH */
         INFO("Putting DCI to location: n=%d, L=%d\n", locations[sf_idx][0].ncce, locations[sf_idx][0].L);
         srslte_dci_msg_pack_pdsch(&ra_dl, SRSLTE_DCI_FORMAT1, &dci_msg, cell.nof_prb, cell.nof_ports, false);
-        if (srslte_pdcch_encode(&pdcch, &dci_msg, locations[sf_idx][0], UE_CRNTI, sf_symbols, sf_idx, cfi)) {
+        if (srslte_pdcch_encode(&pdcch, &dci_msg, locations[sf_idx][0], ue_crnti, sf_symbols, sf_idx, cfi)) {
           fprintf(stderr, "Error encoding DCI message\n");
           exit(-1);
         }
 
         /* Configure pdsch_cfg parameters */
         srslte_ra_dl_grant_t grant; 
-        srslte_ra_dl_dci_to_grant(&ra_dl, cell.nof_prb, UE_CRNTI, &grant);        
+        srslte_ra_dl_dci_to_grant(&ra_dl, cell.nof_prb, ue_crnti, &grant);        
         if (srslte_pdsch_cfg(&pdsch_cfg, cell, &grant, cfi, sf_idx, 0)) {
           fprintf(stderr, "Error configuring PDSCH\n");
           exit(-1);
         }
        
         /* Encode PDSCH */
-        if (srslte_pdsch_encode(&pdsch, &pdsch_cfg, &softbuffer, data, UE_CRNTI,sf_symbols)) {
+        if (srslte_pdsch_encode(&pdsch, &pdsch_cfg, &softbuffer, data, ue_crnti,sf_symbols)) {
           fprintf(stderr, "Error encoding PDSCH + \n");
           exit(-1);
         }        
@@ -849,7 +855,7 @@ void * wishful_thread_send_run(void *args)
         wishful_command rece[1];
         pipe_pop(c,rece,1);
         wishful_response wish;
-	wish.is_reconfig = false;
+	      wish.is_reconfig = false;
         wish.reconfig_value = -1;
         wish.which_reconfig = -1;
         wish.which_metric = 0;
@@ -864,7 +870,17 @@ void * wishful_thread_send_run(void *args)
         {
             wish.is_reconfig = false;
             wish.reconfig_value = -1;
-            wish.which_reconfig = -1;  
+            wish.which_reconfig = -1;
+            switch(rece[0].which_metric)
+            {
+              case NUM_TX:
+              wish.which_metric = NUM_TX;
+              wish.metric_value = num_frames;
+              break;
+              default:
+              break;
+               
+            }
         }
         else if(rece[0].make_config)
         {

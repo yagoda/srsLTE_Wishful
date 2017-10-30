@@ -338,11 +338,10 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
         // If B200 is available, use it
         args = "type=b200";        
         handler->devname = DEVNAME_B200;
-        //handler->activate_resampler = true;
       } else if (find_string(devices_str, "type=x300")) {
         // Else if X300 is available, set master clock rate now (can't be changed later)
         args = "type=x300,master_clock_rate=184.32e6";
-        handler->dynamic_rate = false; 
+        handler->dynamic_rate = false;
         handler->devname = DEVNAME_X300;
       }
       else if (find_string(devices_str, "type=usrp2")) {
@@ -361,7 +360,6 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
         handler->devname = DEVNAME_X300;
       } else if (strstr(args, "type=b200")) {
         handler->devname = DEVNAME_B200;
-        //handler->activate_resampler = true;
       }else if (strstr(args, "type=usrp2")) {
         printf("found N-series USRPL activate resampling...\n");
         handler->devname = DEVNAME_N200;
@@ -389,7 +387,6 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
       uhd_usrp_get_mboard_name(handler->usrp, 0, dev_str, 1024);
       if (strstr(dev_str, "B2") || strstr(dev_str, "B2")) {
         handler->devname = DEVNAME_B200;
-        //handler->activate_resampler = true;
       } else if (strstr(dev_str, "X3") || strstr(dev_str, "X3")) {
         handler->devname = DEVNAME_X300;        
       } else if (strstr(dev_str, "N2") || strstr(dev_str, "N2")) {
@@ -457,7 +454,7 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
     
     if(handler->activate_resampler)
     {
-      handler->resampler_storage[0] = srslte_vec_malloc(sizeof(cf_t)*9600*2);
+      handler->resampler_storage[0] = srslte_vec_malloc(sizeof(cf_t)*9600*4);
       srslte_resample_arb_init(&(handler->rx_resampler[0]), 0.96);
       srslte_resample_arb_init(&(handler->rx_resampler[1]), 0.9216);
       
@@ -521,7 +518,7 @@ double rf_uhd_set_rx_srate(void *h, double freq)
   rf_uhd_handler_t *handler = (rf_uhd_handler_t*) h;
   double rate;
   if(handler->activate_resampler){
-    if(freq < 3000000){
+    if(freq < 4000000){
       rate = freq*SRSLTE_RX_RESAMPLE_192;
     }else{
       rate = freq*SRSLTE_RX_RESAMPLE_FULL;
@@ -543,13 +540,14 @@ double rf_uhd_set_tx_srate(void *h, double freq)
   rf_uhd_handler_t *handler = (rf_uhd_handler_t*) h;
   double rate;
   if(handler->activate_resampler){
+    if(freq < 4000000){
+      rate = freq*SRSLTE_TX_RESAMPLE_192;
+    }else{
       rate = freq*SRSLTE_TX_RESAMPLE_FULL;
-    
+    }
   }else{
     rate = freq;
   }
-  
-    
   for (int i=0;i<handler->nof_tx_channels;i++) {
     uhd_usrp_set_tx_rate(handler->usrp, rate, i);
   }
