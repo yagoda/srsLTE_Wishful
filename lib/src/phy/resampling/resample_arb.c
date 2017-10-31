@@ -132,7 +132,7 @@ void srslte_resample_arb_init(srslte_resample_arb_t *q, float rate){
   memset(q->reg, 0, SRSLTE_RESAMPLE_ARB_M*sizeof(cf_t));
   q->acc = 0.0;
   q->rate = rate;
-  q->step = (1/rate)*SRSLTE_RESAMPLE_ARB_N_35;
+  q->step = (1/rate)*SRSLTE_RESAMPLE_ARB_N;
 }
 
 // Resample a block of input data
@@ -143,10 +143,10 @@ int srslte_resample_arb_compute(srslte_resample_arb_t *q, cf_t *input, cf_t *out
   cf_t res1,res2;
   float frac = 0;
   while (cnt < n_in) {
-    res1 = srslte_resample_arb_dot_prod(q->reg, srslte_resample_arb_polyfilt_35[idx], SRSLTE_RESAMPLE_ARB_M);
-    res2 = srslte_resample_arb_dot_prod(q->reg, srslte_resample_arb_polyfilt_35[(idx%SRSLTE_RESAMPLE_ARB_N_35)+1], SRSLTE_RESAMPLE_ARB_M);
+    res1 = srslte_resample_arb_dot_prod(q->reg, srslte_resample_arb_polyfilt[idx], SRSLTE_RESAMPLE_ARB_M);
+    res2 = srslte_resample_arb_dot_prod(q->reg, srslte_resample_arb_polyfilt[(idx%SRSLTE_RESAMPLE_ARB_N)+1], SRSLTE_RESAMPLE_ARB_M);
    
-    if(idx == SRSLTE_RESAMPLE_ARB_N_35){
+    if(idx == SRSLTE_RESAMPLE_ARB_N){
         *output = res1;
     }else {
         *output = res1 + (res2-res1)*frac;
@@ -157,9 +157,9 @@ int srslte_resample_arb_compute(srslte_resample_arb_t *q, cf_t *input, cf_t *out
     n_out++;
     q->acc += q->step;
     idx = (int)floor(q->acc);
-    while(idx >= SRSLTE_RESAMPLE_ARB_N_35){
-      q->acc -= SRSLTE_RESAMPLE_ARB_N_35;
-      idx -= SRSLTE_RESAMPLE_ARB_N_35;
+    while(idx >= SRSLTE_RESAMPLE_ARB_N){
+      q->acc -= SRSLTE_RESAMPLE_ARB_N;
+      idx -= SRSLTE_RESAMPLE_ARB_N;
       if(cnt < n_in)
         srslte_resample_arb_push(q, input[cnt++]);
     }

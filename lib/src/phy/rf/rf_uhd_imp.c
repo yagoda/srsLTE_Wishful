@@ -61,7 +61,7 @@ typedef struct {
   
   cf_t *resampler_storage[1];
   srslte_resample_arb_t rx_resampler[2];
-  srslte_resample_arb_t tx_resampler;
+  srslte_resample_arb_t tx_resampler[2];
   double rx_rate;
  
   bool activate_resampler;
@@ -459,7 +459,8 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
       srslte_resample_arb_init(&(handler->rx_resampler[1]), 0.9216);
       
    
-      srslte_resample_arb_init(&(handler->tx_resampler), 1.08506944444);
+      srslte_resample_arb_init(&(handler->tx_resampler[0]), 1.04166667);
+      srslte_resample_arb_init(&(handler->tx_resampler[1]), 1.08506944444);
       
     }
     
@@ -653,15 +654,15 @@ int rf_uhd_recv_with_time_multi(void *h,
   if(handler->activate_resampler){
     int resampler_idx = 0;
     int numsamples_r = 0;
-    if(handler->rx_rate < 3000000){
+    if(handler->rx_rate < 4000000){
       numsamples_r = nsamples*SRSLTE_RX_RESAMPLE_192;
     }else{
       numsamples_r = nsamples*SRSLTE_RX_RESAMPLE_FULL;
       resampler_idx = 1;
     }
     int ret = rf_uhd_recv_with_time_multi_resampler(h, (void**)handler->resampler_storage, numsamples_r, blocking, secs, frac_secs);
-    int ret1 = srslte_resample_arb_compute(&handler->rx_resampler[resampler_idx], handler->resampler_storage[0], *data, numsamples_r);
-    return ret1; 
+    ret = srslte_resample_arb_compute(&handler->rx_resampler[resampler_idx], handler->resampler_storage[0], *data, numsamples_r);
+    return ret; 
   } else {
     return rf_uhd_recv_with_time_multi_resampler(h, data, nsamples, blocking, secs, frac_secs);
   }
@@ -744,9 +745,16 @@ int rf_uhd_send_timed(void *h,
   
   rf_uhd_handler_t* handler = (rf_uhd_handler_t*) h;
   if(handler->activate_resampler){
-    int numsamples_r = nsamples*SRSLTE_TX_RESAMPLE_FULL;
-    int ret1 = srslte_resample_arb_compute(&handler->tx_resampler, data, handler->resampler_storage[0] , nsamples);
-    int ret = rf_uhd_send_timed_resampler(h, handler->resampler_storage[0], numsamples_r, secs, frac_secs,has_time_spec,blocking,is_start_of_burst,is_end_of_burst);
+    int resampler_idx = 0;
+    int numsamples_r = 0;
+    if(handler->tx_rate < 4000000){
+      numsamples_r = nsamples*SRSLTE_TX_RESAMPLE_192;
+    }else{
+      numsamples_r = nsamples*SRSLTE_TX_RESAMPLE_FULL;
+      resampler_idx = 1;
+    }
+    int ret = srslte_resample_arb_compute(&handler->tx_resampler[resampler_idx], data, handler->resampler_storage[0] , nsamples);
+    ret = rf_uhd_send_timed_resampler(h, handler->resampler_storage[0], numsamples_r, secs, frac_secs,has_time_spec,blocking,is_start_of_burst,is_end_of_burst);
     return ret;
   }  
   else{  
