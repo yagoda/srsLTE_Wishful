@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
 
     // Resample
     srslte_resample_arb_t r;
-    srslte_resample_arb_init(&r, rate);
+    srslte_resample_arb_init(&r, rate, false);
     int n_out = srslte_resample_arb_compute(&r, in, out, N);
 
     // Check interp values

@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
     in[i] = sin(i*2*M_PI/100);
 
   srslte_resample_arb_t r;
-  srslte_resample_arb_init(&r, rate);
+  srslte_resample_arb_init(&r, rate, false);
 
   clock_t start = clock(), diff;
   //int n_out = srslte_resample_arb_compute(&r, in, out, N);

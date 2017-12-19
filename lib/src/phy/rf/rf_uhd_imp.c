@@ -455,12 +455,12 @@ int rf_uhd_open_multi(char *args, void **h, uint32_t nof_rx_antennas)
     if(handler->activate_resampler)
     {
       handler->resampler_storage[0] = srslte_vec_malloc(sizeof(cf_t)*9600*4);
-      srslte_resample_arb_init(&(handler->rx_resampler[0]), 0.96);
-      srslte_resample_arb_init(&(handler->rx_resampler[1]), 0.9216);
+      srslte_resample_arb_init(&(handler->rx_resampler[0]), 0.96, false);
+      srslte_resample_arb_init(&(handler->rx_resampler[1]), 0.9216, false);
       
    
-      srslte_resample_arb_init(&(handler->tx_resampler[0]), 1.04166667);
-      srslte_resample_arb_init(&(handler->tx_resampler[1]), 1.08506944444);
+      srslte_resample_arb_init(&(handler->tx_resampler[0]), 1.04166667, false);
+      srslte_resample_arb_init(&(handler->tx_resampler[1]), 1.08506944444, false);
       
     }
     
